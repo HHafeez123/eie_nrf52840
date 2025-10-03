@@ -1,0 +1,38 @@
+git commit
+- Save staged changes in the repo with a message.
+- Common: git commit -m "message"
+- With all tracked changes: git commit -am "message"
+
+git branch
+- List branches or create/delete them.
+- List: git branch
+- Create: git branch <name>
+- Delete: git branch -d <name>
+
+git checkout
+- Switch branches or restore files.
+- Switch: git checkout <branch>
+- Create + switch (older syntax): git checkout -b <name>
+
+git pull
+- Get changes from a remote and merge into current branch.
+- Default: git pull
+- Specific: git pull <remote> <branch>   (e.g., git pull upstream main)
+
+git push
+- Send local commits to a remote branch.
+- Default: git push
+- First push for a new branch: git push -u origin <branch>
+
+git merge
+- Merge another branch into the current one, creating a merge commit if needed.
+- Example: git merge lesson2
+
+git rebase
+- Replay commits on top of another base (linear history).
+- Example: git rebase main
+- Use with care; avoid rebasing shared branches.
+
+git fetch
+- Download refs and objects from remote without merging.
+- Example: git fetch upstream main
