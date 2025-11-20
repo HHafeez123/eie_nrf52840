@@ -6,64 +6,72 @@
 #include <zephyr/drivers/gpio.h>
 #include <stdbool.h>
 
-/* We only need button 0 for the lesson */
+/* Four buttons: 0..3 */
 typedef enum {
-    BTN0 = 0,
+    BTN0 = 0,  // sw0 -> BUTTON 1
+    BTN1,      // sw1 -> BUTTON 2
+    BTN2,      // sw2 -> BUTTON 3
+    BTN3,      // sw3 -> BUTTON 4
+    BTN_COUNT
 } btn_id;
 
-/* Button 0 is the board alias sw0 */
-static const struct gpio_dt_spec btn0 =
-    GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+/* Map each BTN to a devicetree alias sw0..sw3 */
+static const struct gpio_dt_spec btns[BTN_COUNT] = {
+    GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios),
+    GPIO_DT_SPEC_GET(DT_ALIAS(sw1), gpios),
+    GPIO_DT_SPEC_GET(DT_ALIAS(sw2), gpios),
+    GPIO_DT_SPEC_GET(DT_ALIAS(sw3), gpios),
+};
 
-/* Simple init: configure button 0 as input */
+/* Per-button debounce state */
+static bool btn_prev_level[BTN_COUNT] = { false };
+static bool btn_latched[BTN_COUNT]    = { false };
+
+/* Configure all buttons as inputs */
 static inline int BTN_init(void)
 {
-    int ret;
-
-    if (!device_is_ready(btn0.port)) {
-        return -1;
+    for (int i = 0; i < BTN_COUNT; ++i) {
+        if (!device_is_ready(btns[i].port)) {
+            return -1;
+        }
+        int ret = gpio_pin_configure_dt(&btns[i], GPIO_INPUT);
+        if (ret < 0) {
+            return ret;
+        }
+        /* Initialize previous level */
+        btn_prev_level[i] = gpio_pin_get_dt(&btns[i]) ? true : false;
+        btn_latched[i] = false;
     }
-
-    ret = gpio_pin_configure_dt(&btn0, GPIO_INPUT);
-    if (ret < 0) {
-        return ret;
-    }
-
     return 0;
 }
 
 /*
- * Debounced “press” check.
- * Returns true once per *real* press.
- * Internally it:
- *  - looks for a rising edge,
- *  - waits a short time,
- *  - checks again to filter out bouncing,
- *  - then latches a single “pressed” event.
+ * Debounced “press” check for a specific button.
+ * Returns true once per real press.
  */
 static inline bool BTN_check_clear_pressed(btn_id btn)
 {
-    (void)btn; /* only BTN0 is supported for now */
+    if (btn < 0 || btn >= BTN_COUNT) {
+        return false;
+    }
 
-    static bool prev_level = false;
-    static bool latched = false;
-
-    bool level = gpio_pin_get_dt(&btn0);
+    bool level = gpio_pin_get_dt(&btns[btn]);
+    bool prev  = btn_prev_level[btn];
 
     /* Rising edge detected */
-    if (level && !prev_level) {
+    if (level && !prev) {
         /* Small debounce delay */
         k_msleep(10);
-        level = gpio_pin_get_dt(&btn0);
+        level = gpio_pin_get_dt(&btns[btn]);
         if (level) {
-            latched = true;
+            btn_latched[btn] = true;
         }
     }
 
-    prev_level = level;
+    btn_prev_level[btn] = level;
 
-    if (latched) {
-        latched = false;   /* clear the internal flag */
+    if (btn_latched[btn]) {
+        btn_latched[btn] = false;
         return true;
     }
 
@@ -71,3 +79,4 @@ static inline bool BTN_check_clear_pressed(btn_id btn)
 }
 
 #endif /* BTN_H */
+
